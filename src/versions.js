@@ -28,8 +28,8 @@ export const VERSIONS = [
   { id: 'bp-3.1', agnos: '12.1', bluepilot: 'BluePilot 3.1', devices: ['tici', 'tizi'] },
   { id: 'bp-3.0', agnos: '11.13', bluepilot: 'BluePilot 3.0', devices: ['tici', 'tizi'] },
   // No all-partitions.json existed for AGNOS 11.4. public/manifests/bp-2.1 pairs the AGNOS 11.7 partition table
-  // (identical GPT) with the 11.4 boot/system/bootloader images from agnos.json. Not yet tested on hardware.
-  { id: 'bp-2.1', agnos: '11.4', bluepilot: 'BluePilot 2.1', devices: ['tici', 'tizi'], untested: true },
+  // (identical GPT) with the 11.4 boot/system/bootloader images from agnos.json. Tested on a comma 3 (2026-11-24).
+  { id: 'bp-2.1', agnos: '11.4', bluepilot: 'BluePilot 2.1', devices: ['tici', 'tizi'] },
 ]
 
 export const DEFAULT_VERSION_ID = VERSIONS.find((v) => v.default).id
