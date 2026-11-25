@@ -11,7 +11,9 @@
  * Source of truth for the device lists: https://bluepilot.dev/2025/07/13/bluepilot-version-history/
  *   bp-5.0 dropped the comma 3, bp-6.0 added the comma four.
  *
- * Keep newest first. Exactly one entry has `default: true`.
+ * Entries with `bluepilot` are BluePilot releases (listed first). Entries with only `openpilot` are stock comma
+ * releases (the AGNOS pinned by that tagged openpilot release), offered for other forks; their manifests come from
+ * the release tag's commit. Keep each group newest first. Exactly one entry has `default: true`.
  */
 
 export const DEVICE_TYPE_IDS = { 32: 'tici', 33: 'tizi', 34: 'mici' }
@@ -30,6 +32,16 @@ export const VERSIONS = [
   // No all-partitions.json existed for AGNOS 11.4. public/manifests/bp-2.1 pairs the AGNOS 11.7 partition table
   // (identical GPT) with the 11.4 boot/system/bootloader images from agnos.json. Tested on a comma 3 (2026-11-24).
   { id: 'bp-2.1', agnos: '11.4', bluepilot: 'BluePilot 2.1', devices: ['tici', 'tizi'] },
+
+  // Other stable AGNOS versions: the AGNOS pinned by comma's tagged openpilot releases (commaai/openpilot tags).
+  // Not tied to a BluePilot release and not tested by us. comma four listed only from AGNOS 16 (as bp-6.0).
+  { id: 'agnos-18.3', agnos: '18.3', openpilot: 'openpilot 0.11.1', devices: ['tizi', 'mici'] },
+  { id: 'agnos-17.2', agnos: '17.2', openpilot: 'openpilot 0.11.0', devices: ['tizi', 'mici'] },
+  { id: 'agnos-15.1', agnos: '15.1', openpilot: 'openpilot 0.10.2', devices: ['tizi'] },
+  { id: 'agnos-14.3', agnos: '14.3', openpilot: 'openpilot 0.10.1', devices: ['tizi'] },
+  { id: 'agnos-12.8', agnos: '12.8', openpilot: 'openpilot 0.10.0', devices: ['tici', 'tizi'] },
+  { id: 'agnos-12.3', agnos: '12.3', openpilot: 'openpilot 0.9.9', devices: ['tici', 'tizi'] },
+  { id: 'agnos-11.11', agnos: '11.11', openpilot: 'openpilot 0.9.8', devices: ['tici', 'tizi'] },
 ]
 
 export const DEFAULT_VERSION_ID = VERSIONS.find((v) => v.default).id
@@ -52,9 +64,9 @@ export function versionLabel(version) {
   return `AGNOS ${version.agnos}${version.default ? ' (recommended)' : ''}`
 }
 
-/** Subtitle shown under the dropdown entry, e.g. "BluePilot 7.1" */
+/** Subtitle shown next to the dropdown entry, e.g. "BluePilot 7.1" */
 export function versionSubtitle(version) {
-  return version.bluepilot
+  return version.bluepilot ?? version.openpilot
 }
 
 /**

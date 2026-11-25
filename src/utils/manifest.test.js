@@ -13,7 +13,7 @@ const MANIFEST_BRANCH = import.meta.env.MANIFEST_BRANCH
 // Serve manifests from public/ instead of the network
 const realFetch = globalThis.fetch
 globalThis.fetch = async (url, ...rest) => {
-  const m = String(url).match(/manifests\/(bp-[^/]+)\/([a-z-]+\.json)$/)
+  const m = String(url).match(/manifests\/([^/]+)\/([a-z-]+\.json)$/)
   if (!m) return realFetch(url, ...rest)
   const body = readFileSync(join(process.cwd(), 'public/manifests', m[1], m[2]), 'utf8')
   return new Response(body)

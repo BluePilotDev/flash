@@ -29,7 +29,7 @@ describe('versions', () => {
   })
 
   test('picker lists only versions for the chosen family', () => {
-    expect(versionsForFamily('comma4').map((v) => v.id)).toEqual(['bp-7.1', 'bp-7.0', 'bp-6.0'])
+    expect(versionsForFamily('comma4').map((v) => v.id)).toEqual(['bp-7.1', 'bp-7.0', 'bp-6.0', 'agnos-18.3', 'agnos-17.2'])
     expect(versionsForFamily('comma3')).toHaveLength(VERSIONS.length)
   })
 })

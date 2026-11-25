@@ -643,17 +643,30 @@ function VersionPicker({ deviceType, initialId, onSelect }) {
           className="px-4 py-3 text-xl rounded-xl border-2 border-gray-300 bg-white focus:border-[#51ff00] outline-none"
           data-testid="version-select"
         >
-          {available.map((v) => (
-            <option key={v.id} value={v.id}>
-              {versionLabel(v)} — {versionSubtitle(v)}
-            </option>
-          ))}
+          <optgroup label="BluePilot releases">
+            {available.filter((v) => v.bluepilot).map((v) => (
+              <option key={v.id} value={v.id}>
+                {versionLabel(v)} — {versionSubtitle(v)}
+              </option>
+            ))}
+          </optgroup>
+          {available.some((v) => !v.bluepilot) && (
+            <optgroup label="Other AGNOS versions">
+              {available.filter((v) => !v.bluepilot).map((v) => (
+                <option key={v.id} value={v.id}>
+                  {versionLabel(v)} — {versionSubtitle(v)}
+                </option>
+              ))}
+            </optgroup>
+          )}
         </select>
       </label>
 
       <div className="max-w-md text-center text-gray-600 min-h-16">
         <p className="text-lg">
-          AGNOS {selected.agnos} is the system used by <b>{versionSubtitle(selected)}</b>.
+          {selected.bluepilot
+            ? <>AGNOS {selected.agnos} is the system used by <b>{selected.bluepilot}</b>.</>
+            : <>AGNOS {selected.agnos} is the system shipped with <b>{selected.openpilot}</b>. It is not tied to a BluePilot release and has not been tested by the BluePilot team.</>}
         </p>
         {selected.untested && (
           <p className="text-sm mt-2 text-amber-700">

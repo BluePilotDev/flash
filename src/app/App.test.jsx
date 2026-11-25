@@ -20,5 +20,7 @@ test('AGNOS picker lists BluePilot versions for the chosen device', () => {
     'AGNOS 19.9 (recommended) — BluePilot 7.1',
     'AGNOS 18.5 — BluePilot 7.0',
     'AGNOS 16 — BluePilot 6.0',
+    'AGNOS 18.3 — openpilot 0.11.1',
+    'AGNOS 17.2 — openpilot 0.11.0',
   ])
 })
