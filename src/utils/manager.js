@@ -2,7 +2,7 @@ import { qdlDevice } from '@commaai/qdl'
 import { usbClass } from '@commaai/qdl/usblib'
 
 import { getManifest } from './manifest'
-import config from '../config'
+import { resolveManifestUrl } from '../versions'
 import { createSteps, withProgress } from './progress'
 
 // Fast mode for development - skips flashing system partition (the slowest)
@@ -41,6 +41,7 @@ export const ErrorCode = {
   ERASE_FAILED: 6,
   FLASH_SYSTEM_FAILED: 7,
   FINALIZING_FAILED: 8,
+  UNSUPPORTED_VERSION: 9,
 }
 
 /**
@@ -113,6 +114,8 @@ export class FlashManager {
    */
   constructor(programmer, callbacks = {}) {
     this.manifestUrl = null
+    /** AGNOS version id (see versions.js) chosen by the user */
+    this.versionId = null
     this.callbacks = callbacks
     this.device = new qdlDevice(programmer)
     /** @type {import('./image').ImageManager|null} */
@@ -242,15 +245,18 @@ export class FlashManager {
     this.#setConnected(true)
 
     try {
-      const deviceType = await this.device.getDeviceType()
-      if (deviceType == 32) {
-        this.manifestUrl = config.manifests.release_tici
-      } else if (deviceType == 33) {
-        this.manifestUrl = config.manifests.release_tizi
-      } else if (deviceType == 34) {
-        this.manifestUrl = config.manifests.release_mici
-      } else {
-        throw new Error('Unknown device type', deviceType)
+      // qdl.js may return the type as a string (upstream compared with ==), so normalize it
+      const deviceType = Number(await this.device.getDeviceType())
+      if (![32, 33, 34].includes(deviceType)) {
+        throw new Error(`Unknown device type: ${deviceType}`)
+      }
+      this.manifestUrl = resolveManifestUrl(this.versionId, deviceType)
+      if (!this.manifestUrl) {
+        // Never fall back to a different AGNOS version without telling the user
+        console.error('[Flash] AGNOS version not available for this device', { versionId: this.versionId, deviceType })
+        this.#setConnected(false)
+        this.#setError(ErrorCode.UNSUPPORTED_VERSION)
+        return
       }
 
       try {

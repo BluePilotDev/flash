@@ -1,13 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import posthog from 'posthog-js'
-import * as Sentry from '@sentry/react'
 
 import { FlashManager, StepCode, ErrorCode, DeviceType } from '../utils/manager'
 import { useImageManager } from '../utils/image'
 import { isLinux, isWindows } from '../utils/platform'
 import config from '../config'
+import { DEFAULT_VERSION_ID, getVersion, versionsForFamily, versionLabel, versionSubtitle } from '../versions'
 
-import comma from '../assets/comma.svg'
 import bolt from '../assets/bolt.svg'
 import cable from '../assets/cable.svg'
 import deviceExclamation from '../assets/device_exclamation_c3.svg'
@@ -24,7 +22,7 @@ import comma4Product from '../assets/four_screen_on.webp'
 
 // All images that need to be preloaded
 const preloadImages = [
-  comma, bolt, cable, deviceExclamation, deviceQuestion, done, exclamation,
+  bolt, cable, deviceExclamation, deviceQuestion, done, exclamation,
   systemUpdate, qdlPortsThree, qdlPortsFour, zadigCreateNewDevice, zadigForm,
   comma3XProduct, comma4Product
 ]
@@ -46,14 +44,14 @@ const MAX_LOGS = 500
 const originalConsole = { log: console.log, warn: console.warn, error: console.error, info: console.info, debug: console.debug }
 ;['log', 'warn', 'error', 'info', 'debug'].forEach(level => {
   console[level] = (...args) => {
-    consoleLogs.push({ level, time: new Date().toISOString(), message: args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ') })
+    consoleLogs.push({ level, time: new Date().toISOString(), message: args.map(a => a instanceof Error ? `${a.name}: ${a.message}\n${a.stack ?? ''}` : typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ') })
     if (consoleLogs.length > MAX_LOGS) consoleLogs.shift()
     originalConsole[level]?.(...args)
   }
 })
 
 // Debug info component for error reporting
-function DebugInfo({ error, step, selectedDevice, serial, message, onClose }) {
+function DebugInfo({ error, step, selectedDevice, selectedVersionId, serial, message, onClose }) {
   const [copied, setCopied] = useState(false)
 
   const getDebugReport = () => {
@@ -87,9 +85,10 @@ function DebugInfo({ error, step, selectedDevice, serial, message, onClose }) {
     if (isLinux && !navigator.usb) sandboxHints.push('WebUSB unavailable - possibly sandboxed')
     const sandbox = sandboxHints.length ? sandboxHints.join(', ') : 'None detected'
 
-    return `## Bug Report - flash.comma.ai
+    return `## Bug Report - BluePilot Flasher
 
 **Device:** ${deviceName}
+**AGNOS version:** ${getVersion(selectedVersionId)?.id ?? 'N/A'}
 **Serial:** ${serial || 'N/A'}
 **Error:** ${errorName}
 **Step:** ${stepName}
@@ -123,9 +122,9 @@ ${consoleLogs.slice(-30).map(l => `[${l.time}] [${l.level}] ${l.message}`).join(
       <div className="flex justify-between items-start mb-3 gap-2">
         <p className="text-gray-600 text-sm">
           Copy this debug info and paste it in{' '}
-          <a href="https://discord.comma.ai" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Discord</a>
+          <a href="https://bluepilot.dev" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">the BluePilot community</a>
           {' '}or{' '}
-          <a href="https://github.com/commaai/flash/issues/new" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">GitHub Issues</a>.
+          <a href="https://github.com/BluePilotDev/flash/issues/new" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">GitHub Issues</a>.
         </p>
         {onClose && (
           <button
@@ -233,6 +232,12 @@ const errors = {
     bgColor: 'bg-yellow-500',
     icon: deviceQuestion,
     showDiscordHelp: true,
+  },
+  [ErrorCode.UNSUPPORTED_VERSION]: {
+    status: 'AGNOS version not available',
+    description: 'The AGNOS version you selected cannot be installed on the device that was connected. Retry and choose a different version, or check that you picked the right device.',
+    icon: deviceExclamation,
+    bgColor: 'bg-yellow-500',
   },
   [ErrorCode.LOST_CONNECTION]: {
     status: 'Lost connection',
@@ -346,11 +351,10 @@ function Stepper({ steps, currentStep, onStepClick }) {
 function LandingPage({ onStart }) {
   return (
     <div className="wizard-screen flex flex-col items-center justify-center h-full gap-8 p-8">
-      <img src={comma} alt="comma" width={80} height={80} />
       <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">flash.comma.ai</h1>
+        <h1 className="text-4xl font-bold mb-4">BluePilot Flasher</h1>
         <p className="text-xl text-gray-600 max-w-md">
-          Restore your comma device to a fresh factory state
+          Restore your comma device to a fresh state with the AGNOS version your BluePilot release needs
         </p>
       </div>
       <button
@@ -594,9 +598,83 @@ function DevicePicker({ onSelect }) {
   )
 }
 
+const LAST_VERSION_KEY = 'bluepilot-flash:last-version'
+
+function loadLastVersion() {
+  try {
+    return localStorage.getItem(LAST_VERSION_KEY)
+  } catch {
+    return null
+  }
+}
+
+function saveLastVersion(id) {
+  try {
+    localStorage.setItem(LAST_VERSION_KEY, id)
+  } catch {
+    // storage unavailable (private window, blocked) - not important
+  }
+}
+
+// AGNOS version picker component
+function VersionPicker({ deviceType, initialId, onSelect }) {
+  const available = versionsForFamily(deviceType)
+  const remembered = initialId ?? loadLastVersion()
+  const startId = available.some((v) => v.id === remembered)
+    ? remembered
+    : (available.find((v) => v.id === DEFAULT_VERSION_ID) ?? available[0]).id
+  const [selectedId, setSelectedId] = useState(startId)
+  const selected = getVersion(selectedId)
+
+  return (
+    <div className="wizard-screen flex flex-col items-center justify-center h-full gap-6 p-8">
+      <div className="text-center">
+        <h2 className="text-3xl font-bold mb-2">Which AGNOS version?</h2>
+        <p className="text-xl text-gray-600 max-w-xl">
+          Pick the version that matches the BluePilot release you plan to install. If you are not sure, use the recommended one.
+        </p>
+      </div>
+
+      <label className="flex flex-col gap-2 w-full max-w-md">
+        <span className="text-sm font-semibold text-gray-600">AGNOS version</span>
+        <select
+          value={selectedId}
+          onChange={(e) => setSelectedId(e.target.value)}
+          className="px-4 py-3 text-xl rounded-xl border-2 border-gray-300 bg-white focus:border-[#51ff00] outline-none"
+          data-testid="version-select"
+        >
+          {available.map((v) => (
+            <option key={v.id} value={v.id}>
+              {versionLabel(v)} — {versionSubtitle(v)}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <div className="max-w-md text-center text-gray-600 min-h-16">
+        <p className="text-lg">
+          AGNOS {selected.agnos} is the system used by <b>{versionSubtitle(selected)}</b>.
+        </p>
+        {selected.untested && (
+          <p className="text-sm mt-2 text-amber-700">
+            This version has not been tested on hardware yet. It should work, but please report any problems.
+          </p>
+        )}
+      </div>
+
+      <button
+        onClick={() => onSelect(selectedId)}
+        className="px-8 py-3 text-xl font-semibold rounded-full bg-[#51ff00] hover:bg-[#45e000] active:bg-[#3acc00] text-black transition-colors"
+      >
+        Next
+      </button>
+    </div>
+  )
+}
+
 // Build wizard steps dynamically based on platform and device
 function getWizardSteps(selectedDevice) {
-  const steps = ['Device']
+  const steps = ['Device', 'Version']
   if (isWindows) steps.push('Driver')
   steps.push('Connect')
   if (isLinux && selectedDevice === DeviceType.COMMA_3) steps.push('Unbind')
@@ -607,6 +685,7 @@ function getWizardSteps(selectedDevice) {
 // Map screen names to step names
 const screenToStep = {
   device: 'Device',
+  version: 'Version',
   zadig: 'Driver',
   connect: 'Connect',
   unbind: 'Unbind',
@@ -623,8 +702,8 @@ export default function Flash() {
   const [connected, setConnected] = useState(false)
   const [serial, setSerial] = useState(null)
   const [selectedDevice, setSelectedDevice] = useState(null)
-  const [wizardScreen, setWizardScreen] = useState('landing') // 'landing', 'device', 'zadig', 'connect', 'unbind', 'webusb', 'flash'
-  const reportSentRef = useRef(false)
+  const [selectedVersionId, setSelectedVersionId] = useState(null)
+  const [wizardScreen, setWizardScreen] = useState('landing') // 'landing', 'device', 'version', 'zadig', 'connect', 'unbind', 'webusb', 'flash'
 
   const qdlManager = useRef(null)
   const imageManager = useImageManager()
@@ -658,45 +737,6 @@ export default function Flash() {
       })
   }, [config, imageManager.current])
 
-  // Helper to send a single pass/fail summary
-  function sendSessionSummary(result) {
-    if (reportSentRef.current) return
-    reportSentRef.current = true
-
-    const errorName = Object.keys(ErrorCode).find(k => ErrorCode[k] === error) || 'NONE'
-    const stepName = Object.keys(StepCode).find(k => StepCode[k] === step) || 'UNKNOWN'
-
-    // PostHog
-    posthog.capture('flash_session', {
-      result,
-      serial,
-      device_type: selectedDevice,
-      error_code: errorName,
-      step: stepName,
-    })
-
-    // Sentry
-    Sentry.captureMessage('flash_session', {
-      level: result === 'pass' ? 'info' : 'error',
-      tags: { result, serial, device_type: selectedDevice, error_code: errorName, step: stepName },
-      extra: { console_tail: consoleLogs.slice(-200) },
-    })
-  }
-
-  // Send report on failure
-  useEffect(() => {
-    if (error !== ErrorCode.NONE && !reportSentRef.current) {
-      sendSessionSummary('fail')
-    }
-  }, [error])
-
-  // Send report on success
-  useEffect(() => {
-    if (step === StepCode.DONE && error === ErrorCode.NONE && !reportSentRef.current) {
-      sendSessionSummary('pass')
-    }
-  }, [step, error])
-
   // Transition to flash screen when connected
   useEffect(() => {
     if (connected && wizardScreen === 'webusb') {
@@ -713,6 +753,13 @@ export default function Flash() {
   // Handle device selection
   const handleDeviceSelect = (deviceType) => {
     setSelectedDevice(deviceType)
+    setWizardScreen('version')
+  }
+
+  // Handle AGNOS version selection
+  const handleVersionSelect = (versionId) => {
+    setSelectedVersionId(versionId)
+    saveLastVersion(versionId)
     if (isWindows) {
       setWizardScreen('zadig')
     } else {
@@ -742,6 +789,7 @@ export default function Flash() {
 
   // Handle WebUSB connect button
   const handleWebUSBConnect = () => {
+    if (qdlManager.current) qdlManager.current.versionId = selectedVersionId
     qdlManager.current?.start()
   }
 
@@ -752,6 +800,9 @@ export default function Flash() {
       setStep(StepCode.DEVICE_PICKER)
       setWizardScreen('device')
       setSelectedDevice(null)
+    } else if (stepName === 'Version') {
+      setStep(StepCode.DEVICE_PICKER)
+      setWizardScreen('version')
     } else if (stepName === 'Driver') {
       setWizardScreen('zadig')
     } else if (stepName === 'Connect') {
@@ -780,6 +831,16 @@ export default function Flash() {
       <div className="relative h-full">
         <Stepper steps={wizardSteps} currentStep={wizardStep} onStepClick={handleWizardBack} />
         <DevicePicker onSelect={handleDeviceSelect} />
+      </div>
+    )
+  }
+
+  // Render AGNOS version picker
+  if (wizardScreen === 'version' && !error) {
+    return (
+      <div className="relative h-full">
+        <Stepper steps={wizardSteps} currentStep={wizardStep} onStepClick={handleWizardBack} />
+        <VersionPicker deviceType={selectedDevice} initialId={selectedVersionId} onSelect={handleVersionSelect} />
       </div>
     )
   }
@@ -835,12 +896,10 @@ export default function Flash() {
     description += ' Did you forget to unbind the device from qcserial?'
   }
 
-  // Build Discord help link based on device type
-  const discordChannel = selectedDevice === DeviceType.COMMA_4 ? 'hw-four' : 'hw-three-3x'
+  // Help link
   const discordLink = showDiscordHelp && (
-    <> If the problem persists, join <a href="https://discord.comma.ai" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline font-semibold">#{discordChannel}</a> on Discord for help.</>
+    <> If the problem persists, ask for help in the <a href="https://bluepilot.dev" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline font-semibold">BluePilot community</a>.</>
   )
-
 
   let title
   if (message && !error) {
@@ -911,6 +970,7 @@ export default function Flash() {
           error={error}
           step={step}
           selectedDevice={selectedDevice}
+          selectedVersionId={selectedVersionId}
           serial={serial}
           message={message}
           onClose={hideRetry ? () => setShowDebugInfo(false) : undefined}

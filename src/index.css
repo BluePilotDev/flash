@@ -30,3 +30,31 @@
   background: transparent;
 }
 
+
+/*
+ * Dark theme. The upstream UI is written with light Tailwind colors, so they are remapped here
+ * instead of editing every class. Everything is scoped to .dark-ui (set on the root in app/index.jsx).
+ */
+.dark-ui {
+  background-color: #1f2023;
+  color: #e5e7eb;
+  color-scheme: dark;
+}
+.dark-ui .bg-gray-100 { background-color: #1f2023; }
+.dark-ui .bg-white { background-color: #2d2f33; color: #e5e7eb; }
+.dark-ui .bg-gray-200 { background-color: #3a3d42; }
+.dark-ui .bg-gray-300 { background-color: #3f4348; }
+.dark-ui .border-gray-200 { border-color: #3f4348; }
+.dark-ui .border-gray-300 { border-color: #55595f; }
+.dark-ui .border-gray-400 { border-color: #70757c; }
+.dark-ui .hover\:border-gray-400:hover { border-color: #8a9097; }
+.dark-ui .text-gray-400 { color: #9ca3af; }
+.dark-ui .text-gray-500 { color: #a3a9b2; }
+.dark-ui .text-gray-600 { color: #b8bdc6; }
+.dark-ui .text-gray-700 { color: #cdd1d8; }
+.dark-ui .hover\:text-gray-700:hover { color: #e5e7eb; }
+.dark-ui .text-blue-500 { color: #6ea8ff; }
+.dark-ui .text-amber-700 { color: #f0b44c; }
+.dark-ui code:not(.text-black) { color: #e5e7eb; }
+/* disabled buttons keep readable text */
+.dark-ui .bg-gray-300.text-gray-500 { color: #8b9098; }

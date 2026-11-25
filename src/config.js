@@ -1,11 +1,10 @@
+import programmerUrl from './QDL/programmer.bin?url'
+
+// AGNOS versions and their manifests are defined in ./versions.js
 const config = {
-  manifests: {
-    release_mici: 'https://raw.githubusercontent.com/commaai/openpilot/release-mici/openpilot/common/hardware/comma/all-partitions.json',
-    release_tizi: 'https://raw.githubusercontent.com/commaai/openpilot/release-tizi/openpilot/common/hardware/comma/all-partitions.json',
-    release_tici: 'https://raw.githubusercontent.com/commaai/openpilot/release-tici/system/hardware/tici/all-partitions.json',
-  },
   loader: {
-    url: 'https://raw.githubusercontent.com/commaai/flash/master/src/QDL/programmer.bin',
+    // QDL programmer, bundled with this site (copied from commaai/flash)
+    url: programmerUrl,
   },
 }
 

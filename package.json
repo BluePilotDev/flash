@@ -1,5 +1,5 @@
 {
-  "name": "@commaai/flash",
+  "name": "bluepilot-flash",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "start": "vite preview",
+    "validate": "node scripts/validate-manifests.mjs",
+    "mirror": "node scripts/mirror-images.mjs",
     "test": "vitest"
   },
   "engines": {
@@ -16,8 +18,6 @@
     "@commaai/qdl": "git+https://github.com/commaai/qdl.js.git#21d7be79fa5178f253d32a0879bd8bdd4fa37e30",
     "@fontsource-variable/inter": "^5.2.5",
     "@fontsource-variable/jetbrains-mono": "^5.2.5",
-    "@sentry/react": "^10.32.1",
-    "posthog-js": "^1.310.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "xz-decompress": "^0.2.2"
